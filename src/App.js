@@ -1,23 +1,39 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from 'react';
 
 function App() {
+  // State to store the Bitcoin address entered by the user
+  const [address, setAddress] = useState('');
+  
+  // State to store the balance retrieved from the database
+  const [balance, setBalance] = useState(null);
+
+  // Function to handle the address input and initiate the balance query
+  const handleSearch = () => {
+    // You can implement the logic to query the database for the balance here
+    // Make an API request to your backend to fetch data and update the UI
+    // For now, we'll just display the entered address
+    setBalance(null); // Clear previous balance
+    console.log(`Searching for address: ${address}`);
+  };
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <h1>Bitcoin Explorer</h1>
+      <p>Enter a Bitcoin address to check its balance:</p>
+      <input
+        type="text"
+        placeholder="Enter Bitcoin Address"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+      />
+      <button onClick={handleSearch}>Search</button>
+      
+      {balance !== null && (
+        <div>
+          <p>Balance for address: {address}</p>
+          <p>{balance} BTC</p>
+        </div>
+      )}
     </div>
   );
 }
