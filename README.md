@@ -21,4 +21,9 @@ We understand the resource commitments required for the initial setup and active
 ## Contribution and Development
 **_BTC Endeavour_** is a community-driven project that thrives on collaboration and contributions. Developers and Bitcoin enthusiasts are encouraged to contribute to the project, helping to make it more robust, feature-rich, and accessible to everyone.
 
-Join us in our journey to make Bitcoin's blockchain data open, accessible, and transparent to all.
+## Future Plans
+In the spirit of community and ease of access, we are working on providing a downloadable version of the initial database data. This will significantly cut down the time required for the initial seeding of the database, allowing users to quickly get up and running with **_BTC Endeavour_**.
+
+Stay tuned to this repository for a slew of updates that are on the horizon. In the coming weeks and months, we will be rolling out comprehensive front-end and back-end functionalities to enhance user experience and feature set. We are committed to evolving **_BTC Endeavour_** into a more robust, user-friendly, and feature-complete Bitcoin blockchain explorer.
+
+Your contributions, feedback, and suggestions are invaluable as we continue to develop and refine **_BTC Endeavour_**. Together, let's build a powerful tool that serves the needs of the Bitcoin community and beyond.
