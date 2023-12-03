@@ -1,6 +1,5 @@
 # IN PROGRESS
-![alt text](https://github.com/KBiz65/BTC-explorer/blob/main/assets/BTCEndeavorLogoPNG.png "Working Logo")
-<img src="https://github.com/KBiz65/BTC-explorer/blob/main/assets/BTCEndeavorLogoPNG.png" width="100" height="100" />
+<img src="https://github.com/KBiz65/BTC-explorer/blob/main/assets/BTCEndeavorLogoPNG.png" width="100" height="100" alt="BTC Endeavour Explorer logo"/>
 
 This project is currently in process to create the initial fully working explorer. The purpose of this explorer will be to have a very easy user interface and to be able to run this explorer locally once you have the database seeded.
 
