@@ -1,5 +1,6 @@
 # BTC Endeavour Block Explorer
 <img src="https://github.com/KBiz65/BTC-explorer/blob/main/assets/BTCEndeavorLogoPNG.png" width="200" height="200" alt="**_BTC Endeavour_** Explorer logo"/>
+<img src="https://github.com/KBiz65/BTC-explorer/blob/main/assets/BTCEndeavorLogoPNG.png" width="50" height="50" alt="**_BTC Endeavour_** Explorer logo"/>
 
 Welcome to **_BTC Endeavour_**, a comprehensive and fully open-source Bitcoin block explorer designed for enthusiasts, researchers, and developers who wish to run a full Bitcoin Core node along with an explorer interface to interact with the blockchain data locally. 
 
