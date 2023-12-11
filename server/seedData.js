@@ -1,274 +1,189 @@
 require('dotenv').config();
-const bitcoin = require('bitcoin-core');
-const { Pool } = require('pg');
+const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const { playStartChime } = require('./utils/playStartChime');
 
-// Import utility functions from the utils folder
-const extractSenderAddress = require('./utils/extractSenderAddress');
-const findRecipientAddress = require('./utils/findRecipientAddress');
+// Import database operation functions
+const insertBlockIntoDatabase = require('./dbOperations/insertBlockIntoDatabase');
+const prepareTransactionData = require('./utils/prepareTransactionData');
+const batchInsertTransactions = require('./dbOperations/batchInsertTransactions');
+const logError = require('./dbOperations/logError');
 
-const bitcoinNetwork = process.env.BITCOIN_NETWORK;
-const bitcoinRpcHost = process.env.BITCOIN_RPC_HOST;
-const bitcoinRpcPort = process.env.BITCOIN_RPC_PORT;
-const bitcoinRpcUsername = process.env.BITCOIN_RPC_USERNAME;
-const bitcoinRpcPassword = process.env.BITCOIN_RPC_PASSWORD;
-const databaseHost = process.env.DATABASE_HOST;
-const databaseName = process.env.DATABASE_NAME;
-const databaseUser = process.env.DATABASE_USER;
-const databasePassword = process.env.DATABASE_PASSWORD;
-const databasePort = process.env.DATABASE_PORT;
+// Import bitcoinClient connection
+const bitcoinClient = require('./bitcoinClient');
 
-const BATCH_THRESHOLD = 3000;  // Adjust this threshold as needed
+const BATCH_THRESHOLD = 5000;
+const MAX_WORKERS = 8;
+const MAX_BLOCKS_PER_WORKER = 50; // Limit for each worker
+let blockQueue = [];
 
-const bitcoinClient = new bitcoin({
-  network: bitcoinNetwork,
-  host: bitcoinRpcHost,
-  port: bitcoinRpcPort,
-  username: bitcoinRpcUsername,
-  password: bitcoinRpcPassword,
-});
+// test blocks in multiple parts of the chain to help see different block info schemas
+// let blockQueue = [
+// 	10870, 18945, 32643, 57943, 66133, 71877, 91109, 132389, 187385, 190509, 193084, 199828, 210886,
+// 	225647, 234257, 283636, 292187, 327669, 337490, 340519, 340996, 402259, 450761, 463007, 466618, 475405,
+// 	482891, 482947, 504870, 512765, 514297, 532553, 585714, 594083, 594315, 600211, 616291, 653102, 654720, 673562,
+// 	693693, 694275, 708190, 709907, 746316, 746811, 798384, 806400, 815787, 818601
+// ];
 
-const pool = new Pool({
-  host: databaseHost,
-  database: databaseName,
-  user: databaseUser,
-  password: databasePassword,
-  port: databasePort,
-});
+// commented out since throttling seems to work without this so far.
+// const safeRpcCall = async (functionName, args = [], retries = 5, delay = 1000) => {
+//   try {
+//     return await bitcoinClient[functionName](...args);
+//   } catch (error) {
+//     if (retries === 0) throw error;
+//     await new Promise((resolve) => setTimeout(resolve, delay));
+//     console.log('recalling safeRpcCall *****************************************');
+//     return safeRpcCall(functionName, args, retries - 1, delay * 2);
+//   }
+// };
 
-const insertBlockIntoDatabase = async (blockInfo) => {
-  const client = await pool.connect();
+const processBlock = async (blockHeight, accumulatedTransactions) => {
   try {
-    const blockQuery = `
-      INSERT INTO blocks (block_hash, block_height, timestamp, merkle_root, previous_block_hash, nonce, difficulty, size, version, confirmations, transaction_count)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      ON CONFLICT (block_hash) DO NOTHING;
-    `;
+    const blockHash = await bitcoinClient.getBlockHash(blockHeight);
+		const blockInfo = await bitcoinClient.getBlock(blockHash);
+		await insertBlockIntoDatabase(blockInfo);
 
-    const values = [
-      blockInfo.hash,
-      blockInfo.height,
-      new Date(blockInfo.time * 1000),
-      blockInfo.merkleroot,
-      blockInfo.previousblockhash,
-      blockInfo.nonce,
-      blockInfo.difficulty,
-      blockInfo.size,
-      blockInfo.version,
-      blockInfo.confirmations,
-      blockInfo.tx.length,
-    ];
+		console.log(`Processing block ${blockHeight} with ${blockInfo.tx.length} transactions...`);
+		for (const [index, txid] of blockInfo.tx.entries()) {
+			try {
+				const transaction = await bitcoinClient.getRawTransaction(txid, true);
+				const transactionData = await prepareTransactionData(transaction);
+				accumulatedTransactions.push(transactionData);
 
-    await client.query(blockQuery, values);
-  } catch (error) {
-    console.error('Error saving block to database:', error);
-    throw error;
-  } finally {
-    client.release();
-  }
+				// console.log(`Adding transaction ${index + 1} of block ${blockHeight} to the array.`);
+			} catch (transactionError) {
+				console.error(`Error processing transaction ${txid} in block ${blockHeight}:`, transactionError);
+				await logError(blockHeight, transactionError);
+			}
+		}
+	} catch (blockError) {
+		console.error(`Error processing block ${blockHeight}:`, blockError);
+		await logError(
+			'Block Processing Error',
+			`Failed to process block at height ${blockHeight}: ${blockError.message}`,
+			blockHash
+		);
+	}
 };
 
-const prepareTransactionData = async (transaction, blockTimestamp) => {
-  const transactionFee = await calculateTransactionFee(transaction);
-  const transactionData = {
-    transactionHash: transaction.txid,
-    blockHash: transaction.blockhash,
-    version: transaction.version,
-    size: transaction.size,
-    vsize: transaction.vsize,
-    weight: transaction.weight,
-    lockTime: transaction.locktime,
-    timestamp: blockTimestamp,
-    confirmations: transaction.confirmations,
-    fee: transactionFee,
-    inputs: [],
-    outputs: [],
-  };
-
-  for (let i = 0; i < transaction.vin.length; i++) {
-    const input = transaction.vin[i];
-    const senderAddress = await extractSenderAddress(input, bitcoinClient);
-    transactionData.inputs.push({
-      transactionHash: transaction.txid,
-      previousTransactionHash: input.txid,
-      outputIndex: input.vout,
-      scriptSig: input.scriptSig ? input.scriptSig.hex : null,
-      sequence: input.sequence,
-      witness: input.txinwitness ? input.txinwitness.join(' ') : null,
-      senderAddress: senderAddress,
-    });
-  }
-
-  for (let i = 0; i < transaction.vout.length; i++) {
-    const output = transaction.vout[i];
-    const receiverAddress = findRecipientAddress([output]);
-    transactionData.outputs.push({
-      transactionHash: transaction.txid,
-      value: output.value,
-      scriptPubKey: output.scriptPubKey.hex,
-      address: receiverAddress,
-      outputIndex: i,
-    });
-  }
-
-  return transactionData;
+const startWorker = () => {
+	const worker = new Worker(__filename);
+	playStartChime(); // Notify that new worker created
+	worker.on('message', async (message) => {
+		if (message.type === 'request_block') {
+			if (blockQueue.length > 0) {
+				const blockHeight = blockQueue.shift();
+				worker.postMessage({ type: 'process_block', blockHeight });
+			} else {
+				worker.postMessage({ type: 'no_blocks_left' });
+			}
+		} else if (message.type === 'error') {
+			console.error(`Error processing block ${message.blockHeight}: ${message.error}`);
+			await logError('Block Processing Error', message.error, message.blockHash, message.transactionHash);
+		} else if (message.type === 'completed_processing') {
+			// Worker has completed its task, start a new worker if blocks are left
+			worker.terminate();
+			if (blockQueue.length > 0) {
+				startWorker();
+			}
+		}
+	});
+	worker.on('error', (error) => console.error('Worker error:', error));
+	worker.on('exit', (code) => {
+		if (code !== 0) console.error(`Worker stopped with exit code ${code}`);
+	});
 };
 
-const batchInsertTransactions = async (transactions) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+if (isMainThread) {
+	const main = async () => {
+		console.log(`main function is running, isMainThread: ${isMainThread}`);
 
-    for (const transaction of transactions) {
-      const transactionQuery = `
-        INSERT INTO transactions (transaction_hash, block_hash, version, size, vsize, weight, lock_time, timestamp, confirmations, fee)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT (transaction_hash) DO NOTHING;
-      `;
+		// Obtain the current blockchain height
+		const currentBlockchainHeight = await bitcoinClient.getBlockCount();
+		// Initialize block queue with all block heights
+		const startBlock = 1; // The block number from which you want to start
+		blockQueue = Array.from({ length: currentBlockchainHeight - startBlock + 1 }, (_, i) => i + startBlock);
+		// blockQueue = Array.from({ length: 10 }, (_, i) => i + startBlock);
 
-      const transactionValues = [
-        transaction.transactionHash,
-        transaction.blockHash,
-        transaction.version,
-        transaction.size,
-        transaction.vsize,
-        transaction.weight,
-        transaction.lockTime,
-        transaction.timestamp,
-        transaction.confirmations,
-        transaction.fee,
-      ];
+		for (let i = 0; i < MAX_WORKERS; i++) {
+			startWorker();
+		}
+	};
 
-      await client.query(transactionQuery, transactionValues);
+	main().catch((e) => console.error(e));
+} else {
+	let accumulatedTransactions = [];
+	let processedBlockHeights = [];
+	let throttleTime = 0; // Initial throttle time
+	const MAX_RESPONSE_TIME = 5000; // Maximum response time in milliseconds before throttling
+	const NORMAL_RESPONSE_TIME = 1000; // Response time indicating server is responding normally
+	const THROTTLE_INCREMENT = 1000; // Increment to increase throttle time
+	const THROTTLE_DECREMENT = 100; // Decrement to decrease throttle time
+	let batchStartBlock = null; // Track the first block in the current batch
+	let processedBlocksCount = 0; // Track the number of processed blocks by this worker
 
-      for (const input of transaction.inputs) {
-        const inputQuery = `
-          INSERT INTO inputs (transaction_hash, previous_transaction_hash, output_index, script_sig, sequence, witness, sender_address)
-          VALUES ($1, $2, $3, $4, $5, $6, $7);
-        `;
+	// Function to request the next block to process
+	const requestNextBlock = () => {
+		parentPort.postMessage({ type: 'request_block' });
+	};
 
-        const inputValues = [
-          input.transactionHash,
-          input.previousTransactionHash,
-          input.outputIndex,
-          input.scriptSig,
-          input.sequence,
-          input.witness,
-          input.senderAddress, // Ensure this is correctly obtained in prepareTransactionData
-        ];
+	// Listen for messages from the main thread
+	parentPort.on('message', async (message) => {
+		if (message.type === 'process_block') {
+			const blockHeight = message.blockHeight;
+			batchStartBlock = batchStartBlock === null ? blockHeight : batchStartBlock;
 
-        await client.query(inputQuery, inputValues);
-      }
+			// Throttling mechanism
+			if (throttleTime > 0) {
+				await new Promise((resolve) => setTimeout(resolve, throttleTime));
+			}
 
-      for (const output of transaction.outputs) {
-        const outputQuery = `
-          INSERT INTO outputs (transaction_hash, value, script_pub_key, receiver_address, output_index)
-          VALUES ($1, $2, $3, $4, $5);
-        `;
+			// Start timing the RPC call
+			const startTime = Date.now();
+			await processBlock(blockHeight, accumulatedTransactions);
+			processedBlockHeights.push(blockHeight);
+			const endTime = Date.now();
+			const duration = endTime - startTime;
 
-        const outputValues = [
-          output.transactionHash,
-          output.value,
-          output.scriptPubKey,
-          output.receiverAddress, // Ensure this is correctly obtained in prepareTransactionData
-          output.outputIndex,
-        ];
+			// Adjust throttle time based on response duration
+			if (duration > MAX_RESPONSE_TIME) {
+				throttleTime += THROTTLE_INCREMENT;
+			} else if (duration < NORMAL_RESPONSE_TIME && throttleTime > 0) {
+				throttleTime = Math.max(0, throttleTime - THROTTLE_DECREMENT);
+			}
 
-        await client.query(outputQuery, outputValues);
-      }
-    }
+			// Check if BATCH_THRESHOLD is reached
+			if (accumulatedTransactions.length >= BATCH_THRESHOLD) {
+				await batchInsertTransactions(accumulatedTransactions);
+				console.log(
+					`Blocks ${processedBlockHeights.join(', ')} have been successfully inserted into the database.`
+				);
+				accumulatedTransactions = [];
+				processedBlockHeights = [];
+				batchStartBlock = null;
+			}
 
-    await client.query('COMMIT');
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error in batch transaction:', error);
-    throw error;
-  } finally {
-    client.release();
-  }
-};
+			processedBlocksCount++;
+			if (processedBlocksCount >= MAX_BLOCKS_PER_WORKER) {
+				// Perform a final batch insert before completing
+				if (accumulatedTransactions.length > 0) {
+					await batchInsertTransactions(accumulatedTransactions);
+					console.log(`Final batch for worker has been successfully inserted into the database.`);
+				}
+				// Signal completion to the main thread
+				parentPort.postMessage({ type: 'completed_processing' });
+			} else {
+				requestNextBlock();
+			}
+		} else if (message.type === 'no_blocks_left') {
+			// Final insertion for remaining transactions
+			if (accumulatedTransactions.length > 0) {
+				await batchInsertTransactions(accumulatedTransactions);
+				console.log(`Final batch has been successfully inserted into the database.`);
+			}
+			parentPort.postMessage(`Completed processing blocks`);
+		}
+	});
 
-const calculateTransactionFee = async (transaction) => {
-  let totalInputs = 0;
-  let totalOutputs = transaction.vout.reduce((acc, output) => acc + output.value, 0);
-
-  for (const input of transaction.vin) {
-    if (input.coinbase) {
-      return 0;
-    }
-
-    const inputTx = await bitcoinClient.getRawTransaction(input.txid, true);
-    const inputTxOutput = inputTx.vout[input.vout];
-    totalInputs += inputTxOutput.value;
-  }
-
-  return totalInputs - totalOutputs;
-};
-
-const logError = async (blockHeight, error) => {
-  const client = await pool.connect();
-  try {
-    const query = `
-      INSERT INTO error_logs (block_height, error_message)
-      VALUES ($1, $2);
-    `;
-    const values = [blockHeight, error.message || error.toString()];
-
-    await client.query(query, values);
-  } catch (logError) {
-    console.error('Error logging to database:', logError);
-  } finally {
-    client.release();
-  }
-};
-
-const indexBlocks = async () => {
-  try {
-    const blockCount = await bitcoinClient.getBlockCount();
-    let accumulatedTransactions = [];
-    let accumulatedTransactionCount = 0;
-    let startBlockHeight = 1;
-
-    for (let blockHeight = 1; blockHeight <= blockCount; blockHeight++) {
-    // for (let blockHeight = 367853; blockHeight <= 367853; blockHeight++) {
-      try {
-        const blockHash = await bitcoinClient.getBlockHash(blockHeight);
-        const blockInfo = await bitcoinClient.getBlock(blockHash);
-        await insertBlockIntoDatabase(blockInfo);
-
-        console.log(`Processing block ${blockHeight} with ${blockInfo.tx.length} transactions...`);
-        for (const [index, txid] of blockInfo.tx.entries()) {
-          try {
-            const transaction = await bitcoinClient.getRawTransaction(txid, true);
-            const blockTimestamp = new Date(blockInfo.time * 1000);
-            const transactionData = await prepareTransactionData(transaction, blockTimestamp);
-            accumulatedTransactions.push(transactionData);
-            accumulatedTransactionCount++;
-
-            console.log(`Adding transaction ${index + 1} of block ${blockHeight} to the array.`);
-          } catch (transactionError) {
-            console.error(`Error processing transaction ${txid} in block ${blockHeight}:`, transactionError);
-            await logError(blockHeight, transactionError);
-          }
-        }
-
-        if (accumulatedTransactionCount >= BATCH_THRESHOLD || blockHeight === blockCount) {
-          if (accumulatedTransactions.length > 0) {
-            await batchInsertTransactions(accumulatedTransactions);
-            console.log(`Blocks ${startBlockHeight} - ${blockHeight} have been processed.`);
-            accumulatedTransactions = []; 
-            accumulatedTransactionCount = 0;
-            startBlockHeight = blockHeight + 1;
-          }
-        }
-      } catch (blockError) {
-        console.error(`Error processing block ${blockHeight}:`, blockError);
-        await logError(blockHeight, blockError);
-      }
-    }
-  } catch (overallError) {
-    console.error('Error in indexing blocks:', overallError);
-    await logError(null, overallError);
-  }
-};
-
-indexBlocks();
+	// Initial request for a block
+	requestNextBlock();
+}

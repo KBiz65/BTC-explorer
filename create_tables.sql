@@ -1,65 +1,65 @@
 CREATE TABLE blocks (
-  block_hash VARCHAR(64) PRIMARY KEY,
-  block_height INTEGER,
-  timestamp TIMESTAMPTZ,
-  merkle_root VARCHAR(64),
-  previous_block_hash VARCHAR(64),
-  nonce BIGINT,
-  difficulty NUMERIC,
-  size INTEGER,
-  version INTEGER,
-  confirmations INTEGER,
-  transaction_count INTEGER
+    block_hash VARCHAR(64) PRIMARY KEY,
+    version INT,
+    previous_block_hash VARCHAR(64),
+    merkle_root VARCHAR(64),
+    block_time INT,
+    bits INT,
+    nonce BIGINT,
+    height INT,
+    size INT,
+    weight INT,
+    num_transactions INT,
+    timestamp TIMESTAMP
 );
 
 CREATE TABLE transactions (
-  transaction_id SERIAL PRIMARY KEY,
-  block_hash VARCHAR(64) REFERENCES blocks (block_hash),
-  transaction_hash VARCHAR(64) UNIQUE,
-  version INTEGER,
-  size INTEGER,
-  vsize INTEGER,
-  weight INTEGER,
-  lock_time INTEGER,
-  timestamp TIMESTAMPTZ,
-  confirmations INTEGER,
-  fee DECIMAL(18, 8)
+    txid VARCHAR(64) PRIMARY KEY,
+    block_hash VARCHAR(64),
+    size INT,
+    virtual_size INT,
+    weight INT,
+    lock_time INT,
+    version INT,
+    fees NUMERIC, -- Use NUMERIC for currency values to handle large values and decimals
+    FOREIGN KEY (block_hash) REFERENCES blocks(block_hash)
 );
 
 CREATE TABLE inputs (
-  input_id SERIAL PRIMARY KEY,
-  transaction_hash VARCHAR(64) REFERENCES transactions (transaction_hash),
-  previous_transaction_hash VARCHAR(64),
-  output_index INTEGER,
-  script_sig TEXT,
-  sequence BIGINT,
-  witness TEXT,
-  sender_address VARCHAR(34)
+    input_id SERIAL PRIMARY KEY,
+    txid VARCHAR(64),
+    prev_txid VARCHAR(64),
+    prev_vout BIGINT,
+    script_sig TEXT,
+    input_sequence BIGINT,
+    scripttype VARCHAR(50),
+    FOREIGN KEY (txid) REFERENCES transactions(txid)
+);
+
+CREATE TABLE witnesses (
+    witness_id SERIAL PRIMARY KEY,
+    input_id INT,
+    witness_data TEXT[], -- Array of witness data
+    witness_type VARCHAR(50),
+    FOREIGN KEY (input_id) REFERENCES inputs(input_id)
 );
 
 CREATE TABLE outputs (
-  output_id SERIAL PRIMARY KEY,
-  transaction_hash VARCHAR(64) REFERENCES transactions (transaction_hash),
-  value DECIMAL(18, 8),
-  script_pub_key TEXT,
-  receiver_address VARCHAR(34),
-  output_index INTEGER
-);
-
-CREATE TABLE addresses (
-  address VARCHAR(34) PRIMARY KEY,
-  type VARCHAR(50)
-);
-
-CREATE TABLE scripts (
-  script_id SERIAL PRIMARY KEY,
-  script_asm TEXT,
-  script_hex TEXT
+    output_id SERIAL PRIMARY KEY,
+    txid VARCHAR(64),
+    amount NUMERIC,
+    script_pub_key TEXT,
+    address VARCHAR(100),
+    output_index INT,
+    scripttype VARCHAR(50),  -- Renamed from output_type to scripttype
+    FOREIGN KEY (txid) REFERENCES transactions(txid)
 );
 
 CREATE TABLE error_logs (
-  id SERIAL PRIMARY KEY,
-  block_height INT,
-  error_message TEXT,
-  timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    log_id SERIAL PRIMARY KEY,
+    error_type VARCHAR(255) NOT NULL,
+    error_message TEXT NOT NULL,
+    associated_block_hash VARCHAR(64),
+    associated_transaction_hash VARCHAR(64),
+    logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Automatically captures the time of log entry
 );

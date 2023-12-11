@@ -1,5 +1,14 @@
 {
     "parserOptions": {
-        "ecmaVersion": 2020
+        "ecmaVersion": 2020,
+        "sourceType": "module",  // Add this line
+        "ecmaFeatures": {
+            "jsx": true            // Add this if you are using JSX
+        }
+    },
+    "env": {
+        "es6": true,              // Make sure ES6 environment is enabled
+        "browser": true,          // Add this if your code runs in a browser
+        "node": true              // Add this if your code runs in Node.js
     }
 }
