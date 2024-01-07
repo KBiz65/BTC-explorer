@@ -1,5 +1,5 @@
-const calculateTransactionFee = require('../testFiles/calculateTransactionFee');
-const { determineInputType, determineOutputAddress } = require('./parseTransactionUtils');
+const calculateTransactionFee = require('./calculateTransactionFee');
+const { determineInputType, determineOutputAddress } = require('../utils/parseTransactionUtils');
 
 const prepareTransactionData = async (transaction, blockhash) => {
     try {
@@ -11,7 +11,6 @@ const prepareTransactionData = async (transaction, blockhash) => {
             weight: transaction.weight,
             lockTime: transaction.locktime,
             version: transaction.version,
-            timestamp: transaction.blocktime,
             fee: await calculateTransactionFee(transaction),
             inputs: [],
             outputs: [],
@@ -48,7 +47,7 @@ const prepareTransactionData = async (transaction, blockhash) => {
                 address: determineOutputAddress(output)
             };
         });
-        // console.log('transactionData: ', transactionData);
+        console.log('transactionData: ', transactionData);
         return transactionData;
     } catch (error) {
         console.error('Error in prepareTransactionData:', error);
@@ -56,48 +55,33 @@ const prepareTransactionData = async (transaction, blockhash) => {
     }
 };
 
-// const testTx = {
-//     "txid": "b2088e443cf4b28ade8873cc6b3f6a67557f104ec4dc5b5e293c12973ab8b6b8",
-//     "hash": "07b7639ca14f15b8b74e7c9339f7204561e87c0c2f6fc97b55a93339fa385602",
-//     "version": 2,
-//     "size": 150,
-//     "vsize": 99,
-//     "weight": 396,
-//     "locktime": 799999,
-//     "vin": [
-//       {
-//         "txid": "856bce86ad1f0039ccd9eabe49e58e640e3f05952bd0a26d6687710d3de9a5ad",
-//         "vout": 0,
-//         "scriptSig": {
-//           "asm": "",
-//           "hex": ""
-//         },
-//         "txinwitness": [
-//           "8725b5708b34e9c77a537ebfd6f18bae78f6f67c1a4da15098a44ccad802998fddcc225023731c8729461ebee6eebf1a200a0df86a141aff703dc6a572db5438"
-//         ],
-//         "sequence": 0
-//       }
-//     ],
-//     "vout": [
-//       {
-//         "value": 0.00499441,
-//         "n": 0,
-//         "scriptPubKey": {
-//           "asm": "0 9549a8a78144db492bedbbe57b99343d034bfafb",
-//           "desc": "addr(bc1qj4y63fupgnd5j2ldh0jhhxf585p5h7hm0gzjfc)#3ze4scwd",
-//           "hex": "00149549a8a78144db492bedbbe57b99343d034bfafb",
-//           "address": "bc1qj4y63fupgnd5j2ldh0jhhxf585p5h7hm0gzjfc",
-//           "type": "witness_v0_keyhash"
-//         }
-//       }
-//     ],
-//     "hex": "02000000000101ada5e93d0d7187666da2d02b95053f0e648ee549beead9cc39001fad86ce6b8500000000000000000001f19e0700000000001600149549a8a78144db492bedbbe57b99343d034bfafb01408725b5708b34e9c77a537ebfd6f18bae78f6f67c1a4da15098a44ccad802998fddcc225023731c8729461ebee6eebf1a200a0df86a141aff703dc6a572db5438ff340c00",
-//     "blockhash": "00000000000000000002a7c4c1e48d76c5a37902165a270156b7a8d72728a054",
-//     "confirmations": 20957,
-//     "time": 1690168629,
-//     "blocktime": 1690168629
-//   }
-
-// prepareTransactionData(testTx);
+const testTx = {
+  "txid": "e3bf3d07d4b0375638d5f1db5255fe07ba2c4cb067cd81b84ee974b6585fb468",
+  "hash": "e3bf3d07d4b0375638d5f1db5255fe07ba2c4cb067cd81b84ee974b6585fb468",
+  "version": 1,
+  "size": 133,
+  "vsize": 133,
+  "weight": 532,
+  "locktime": 0,
+  "vin": [
+    {
+      "coinbase": "0456720e1b00",
+      "sequence": 4294967295
+    }
+  ],
+  "vout": [
+    {
+      "value": 50.00000000,
+      "n": 0,
+      "scriptPubKey": {
+        "asm": "04124b212f5416598a92ccec88819105179dcb2550d571842601492718273fe0f2179a9695096bff94cd99dcccdea7cd9bd943bfca8fea649cac963411979a33e9 OP_CHECKSIG",
+        "desc": "pk(04124b212f5416598a92ccec88819105179dcb2550d571842601492718273fe0f2179a9695096bff94cd99dcccdea7cd9bd943bfca8fea649cac963411979a33e9)#ss7pe7ny",
+        "hex": "4104124b212f5416598a92ccec88819105179dcb2550d571842601492718273fe0f2179a9695096bff94cd99dcccdea7cd9bd943bfca8fea649cac963411979a33e9ac",
+        "type": "pubkey"
+      }
+    }
+  ]
+}
+prepareTransactionData(testTx, '00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e');
 
 module.exports = prepareTransactionData;

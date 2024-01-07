@@ -9,10 +9,9 @@ function App() {
 
   // Function to handle the address input and initiate the balance query
   const handleSearch = () => {
-    // You can implement the logic to query the database for the balance here
-    // Make an API request to your backend to fetch data and update the UI
+    // logic to query the database for the balance here
+    // Make an API request to the backend to fetch data and update the UI
     // For now, we'll just display the entered address
-    setBalance(null); // Clear previous balance
     console.log(`Searching for address: ${address}`);
   };
 

@@ -21,11 +21,12 @@ const pool = new Pool({
 // GET Address Info
 router.get('/:address', async (req, res) => {
   const address = req.params.address;
+  console.log('query: ', req.query);
 
   try {
     // Query the database for address information
     const query = `
-      SELECT * FROM addresses
+      SELECT * FROM outputs
       WHERE address = $1;
     `;
     const { rows } = await pool.query(query, [address]);

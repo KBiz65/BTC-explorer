@@ -38,7 +38,6 @@ const insertTransaction = async (client, transaction) => {
         transaction.version,
         transaction.fee,
     ];
-
     await client.query(transactionQuery, transactionValues);
 };
 
@@ -46,8 +45,8 @@ const insertInputs = async (client, inputs) => {
     for (const input of inputs) {
         // Insert input and get the generated input_id
         const inputQuery = `
-            INSERT INTO inputs (txid, prev_txid, prev_vout, script_sig, input_sequence, scripttype)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO inputs (txid, prev_txid, prev_vout, input_sequence, scripttype)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT DO NOTHING
             RETURNING input_id;
         `;
@@ -56,7 +55,6 @@ const insertInputs = async (client, inputs) => {
             input.txid,
             input.previousTxHash,
             input.outputIndex,
-            input.scriptSig,
             input.sequence,
             input.inputType
         ];
@@ -65,21 +63,18 @@ const insertInputs = async (client, inputs) => {
         const inputId = res.rows[0].input_id;
 
         if (input.witnesses) {
-            for (const witness of input.witnesses) {
-                const witnessQuery = `
-                    INSERT INTO witnesses (input_id, witness_data, witness_type)
-                    VALUES ($1, $2, $3)
-                    ON CONFLICT DO NOTHING;
-                `;
-
-                const witnessValues = [
-                    inputId,
-                    witness.witness,
-                    witness.witnessType
-                ];
-                
-                await client.query(witnessQuery, witnessValues);
-            }
+            const witnessQuery = `
+                INSERT INTO witnesses (input_id, witness_data)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING;
+            `;
+    
+            const witnessValues = [
+                inputId,
+                input.witnesses,
+            ];
+    
+            await client.query(witnessQuery, witnessValues);
         }
     }
 };
@@ -87,14 +82,13 @@ const insertInputs = async (client, inputs) => {
 const insertOutputs = async (client, outputs) => {
     for (const output of outputs) {
         const outputQuery = `
-            INSERT INTO outputs (txid, amount, script_pub_key, address, output_index, scripttype)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO outputs (txid, amount, address, output_index, scripttype)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT DO NOTHING;
         `;
         const outputValues = [
             output.txid,
             output.value,
-            output.scriptPubKey,
             output.address,
             output.outputIndex,
             output.outputType

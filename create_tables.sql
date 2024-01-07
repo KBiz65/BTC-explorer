@@ -19,8 +19,8 @@ CREATE TABLE transactions (
     size INT,
     virtual_size INT,
     weight INT,
-    lock_time INT,
-    version INT,
+    lock_time BIGINT,
+    version BIGINT,
     fees NUMERIC, -- Use NUMERIC for currency values to handle large values and decimals
     FOREIGN KEY (block_hash) REFERENCES blocks(block_hash)
 );
