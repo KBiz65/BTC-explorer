@@ -87,17 +87,15 @@ const startWorker = () => {
 if (isMainThread) {
 	const main = async () => {
 		console.log(`main function is running, isMainThread: ${isMainThread}`);
-		// test blocks need to be declared here. Leave the  global
+		// test blocks need to be declared here. Leave the global
 		// blockQueue as an empty array. The main thread needs to
 		// handle the blockQueue but it needs to be declared globally.
-		// blockQueue = [ 451282, 430638, 421209, 392821, 381537, 91812, 91722 ];
+		// blockQueue = [ 736546,736547 ];
 		// Obtain the current blockchain height
 		const currentBlockchainHeight = await bitcoinClient.getBlockCount();
-		// const currentBlockchainHeight = 1000;
 		// Initialize block queue with all block heights
-		const startBlock = 467529; // The block number from which you want to start
+		const startBlock = 1; // The block number from which you want to start
 		blockQueue = Array.from({ length: currentBlockchainHeight - startBlock + 1 }, (_, i) => i + startBlock);
-		// blockQueue = Array.from({ length: 10 }, (_, i) => i + startBlock);
 
 		for (let i = 0; i < MAX_WORKERS; i++) {
 			startWorker();
