@@ -34,7 +34,7 @@ const processBlock = async (blockHeight, accumulatedTransactions) => {
 				// console.log(`Adding transaction ${index + 1} of block ${blockHeight} to the array.`);
 			} catch (transactionError) {
 				console.error(`Error processing transaction ${txid} in block ${blockHeight}:`, transactionError);
-				await logError(blockHeight, transactionError);
+				await logError('Transaction Processing Error', transactionError.message, blockHash, txid);
 			}
 		}
 	} catch (blockError) {
@@ -90,11 +90,11 @@ if (isMainThread) {
 		// test blocks need to be declared here. Leave the global
 		// blockQueue as an empty array. The main thread needs to
 		// handle the blockQueue but it needs to be declared globally.
-		// blockQueue = [ 736546,736547 ];
+		// blockQueue = [278785];
 		// Obtain the current blockchain height
 		const currentBlockchainHeight = await bitcoinClient.getBlockCount();
 		// Initialize block queue with all block heights
-		const startBlock = 1; // The block number from which you want to start
+		const startBlock = 278786; // The block number from which you want to start
 		blockQueue = Array.from({ length: currentBlockchainHeight - startBlock + 1 }, (_, i) => i + startBlock);
 
 		for (let i = 0; i < MAX_WORKERS; i++) {

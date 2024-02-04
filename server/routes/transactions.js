@@ -35,7 +35,7 @@ router.get('/:transactionId', async (req, res) => {
       return;
     }
 
-    res.json(rows[0]);
+    res.json({ transactionInfo: rows[0] });
   } catch (error) {
     console.error('Error retrieving transaction info:', error);
     res.status(500).json({ error: 'Internal server error' });

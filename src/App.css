@@ -1,0 +1,5 @@
+.app {
+    background: linear-gradient(to bottom, #030708 0%, #1B2832 100%);
+    min-height: 100vh;
+    color: white; /* Ensure text is visible against the dark background */
+  }

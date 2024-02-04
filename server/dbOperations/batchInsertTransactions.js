@@ -119,16 +119,21 @@ const insertOutputs = async (client, outputs) => {
   };
   
   const markOutputsAsSpent = async (client, outputs) => {
+    const valuesList = outputs.map((output, index) => 
+        `($${index * 2 + 1}::text, $${index * 2 + 2}::integer)` // Cast txid to text if needed, and output_index to integer
+    ).join(', ');
+
+    const updateValues = outputs.flatMap(output => [output.txid, output.outputIndex]);
+
     const updateQuery = `
-      UPDATE outputs
-      SET spent = true
-      WHERE txid = $1 AND output_index = $2 AND spent = false;
+        UPDATE outputs
+        SET spent = TRUE
+        FROM (VALUES ${valuesList}) AS v(txid, output_index)
+        WHERE outputs.txid = v.txid AND outputs.output_index = v.output_index AND outputs.spent = FALSE;
     `;
-  
-    for (const output of outputs) {
-      const updateValues = [output.txid, output.outputIndex];
-      await client.query(updateQuery, updateValues);
-    }
-  };
+
+    await client.query(updateQuery, updateValues);
+};
+
   
   module.exports = batchInsertTransactions;

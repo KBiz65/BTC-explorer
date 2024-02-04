@@ -19,23 +19,24 @@ const pool = new Pool({
 });
 
 // GET Block Info
-router.get('/:blockHash', async (req, res) => {
-  const blockHash = req.params.blockHash;
+router.get('/:blockHashOrHeight', async (req, res) => {
+  const blockCriteria = req.params.blockHashOrHeight;
+  console.log('blockCriteria: ', blockCriteria);
 
   try {
     // Query the database for block information
     const query = `
       SELECT * FROM blocks
-      WHERE blockhash = $1;
+      WHERE block_hash = $1 OR height = $2;
     `;
-    const { rows } = await pool.query(query, [blockHash]);
+    const { rows } = await pool.query(query, [blockCriteria, blockCriteria]);
 
     if (rows.length === 0) {
       res.status(404).json({ error: 'Block not found' });
       return;
     }
 
-    res.json(rows[0]);
+    res.json({ blockInfo : rows[0] });
   } catch (error) {
     console.error('Error retrieving block info:', error);
     res.status(500).json({ error: 'Internal server error' });

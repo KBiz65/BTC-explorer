@@ -21,7 +21,7 @@ const pool = new Pool({
 // GET Address Info
 router.get('/:address', async (req, res) => {
   const address = req.params.address;
-  console.log('query: ', req.query);
+  console.log('address: ', address);
 
   try {
     // Query the database for address information
@@ -36,28 +36,9 @@ router.get('/:address', async (req, res) => {
       return;
     }
 
-    res.json(rows[0]);
+    res.json({ address: rows[0] });
   } catch (error) {
     console.error('Error retrieving address info:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET Address by Keyword
-router.get('/search', async (req, res) => {
-  const { keyword } = req.query;
-
-  try {
-    // Search for Bitcoin addresses matching the provided keyword
-    const query = `
-      SELECT * FROM addresses
-      WHERE address LIKE $1;
-    `;
-    const { rows } = await pool.query(query, [`%${keyword}%`]);
-
-    res.json(rows);
-  } catch (error) {
-    console.error('Error searching for addresses:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
