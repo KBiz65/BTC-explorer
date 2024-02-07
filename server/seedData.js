@@ -28,7 +28,7 @@ const processBlock = async (blockHeight, accumulatedTransactions) => {
 			try {
 				const transaction = await bitcoinClient.getRawTransaction(txid, true);
 				const decodedTransaction = await bitcoinClient.command('decoderawtransaction', transaction.hex);
-				const transactionData = await prepareTransactionData(decodedTransaction, transaction.blockhash);
+				const transactionData = await prepareTransactionData(decodedTransaction, transaction.blockhash, transaction.time);
 				accumulatedTransactions.push(transactionData);
 
 				// console.log(`Adding transaction ${index + 1} of block ${blockHeight} to the array.`);
@@ -90,11 +90,11 @@ if (isMainThread) {
 		// test blocks need to be declared here. Leave the global
 		// blockQueue as an empty array. The main thread needs to
 		// handle the blockQueue but it needs to be declared globally.
-		// blockQueue = [278785];
+		// blockQueue = [291789, 291793];
 		// Obtain the current blockchain height
 		const currentBlockchainHeight = await bitcoinClient.getBlockCount();
 		// Initialize block queue with all block heights
-		const startBlock = 278786; // The block number from which you want to start
+		const startBlock = 324319; // The block number from which you want to start
 		blockQueue = Array.from({ length: currentBlockchainHeight - startBlock + 1 }, (_, i) => i + startBlock);
 
 		for (let i = 0; i < MAX_WORKERS; i++) {

@@ -1,21 +1,55 @@
 require('dotenv').config();
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg'); // Import the Pool from pg for database connection
+const pool = require('../database');
 
-const databaseHost = process.env.DATABASE_HOST;
-const databaseName = process.env.DATABASE_NAME;
-const databaseUser = process.env.DATABASE_USER;
-const databasePassword = process.env.DATABASE_PASSWORD;
-const databasePort = process.env.DATABASE_PORT;
+// GET Latest Blocks
+router.get('/latest', async (req, res) => {
+  try {
+    // Query the database for block information
+    const blocksQuery = `
+      SELECT * FROM blocks
+      ORDER BY height DESC
+      OFFSET 200
+      LIMIT 10;
+    `;
+    const { rows: blocks } = await pool.query(blocksQuery);
 
-// Create a PostgreSQL connection pool
-const pool = new Pool({
-  host: databaseHost,
-  database: databaseName, // Replace with your database name
-  user: databaseUser,
-  password: databasePassword,       // Replace with your database password
-  port: databasePort,
+    if (blocks.length === 0) {
+      res.status(404).json({ error: 'No blocks found. Try again later.' });
+      return;
+    }
+
+    const coinbaseQuery = `
+      SELECT
+        txid AS coinbase_txid,
+        (SELECT SUM(amount) FROM outputs o WHERE o.txid = t.txid) AS coinbase_value
+      FROM transactions t
+      WHERE block_hash = $1
+        AND EXISTS (
+          SELECT 1
+          FROM inputs i
+          WHERE i.txid = t.txid
+            AND i.scripttype = 'Coinbase'
+        );
+    `;
+
+    const results = await Promise.all(blocks.map(async block => {
+      const { rows: coinbaseData } = await pool.query(coinbaseQuery, [block.block_hash]);
+      const { coinbase_txid, coinbase_value } = coinbaseData[0];
+  
+      return {
+        ...block,
+        coinbase_txid,
+        coinbase_value
+      }
+    }));
+
+    res.json({ latestBlocks : results });
+  } catch (error) {
+    console.error('Error retrieving latest blocks:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // GET Block Info
@@ -39,18 +73,6 @@ router.get('/:blockHashOrHeight', async (req, res) => {
     res.json({ blockInfo : rows[0] });
   } catch (error) {
     console.error('Error retrieving block info:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET Latest Blocks
-router.get('/latest', async (req, res) => {
-  try {
-    // Retrieve and return information about the latest Bitcoin blocks
-    // You can query the latest blocks from the database
-    // and send them as a JSON response.
-  } catch (error) {
-    console.error('Error retrieving latest blocks:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

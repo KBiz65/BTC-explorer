@@ -72,6 +72,12 @@ CREATE TABLE error_logs (
     logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create bitcoin_prices table
+CREATE TABLE bitcoin_prices (
+  date DATE PRIMARY KEY,
+  price NUMERIC
+);
+
 -- Indexes
 -- blocks
 CREATE INDEX idx_blocks_height ON blocks(height);

@@ -1,7 +1,7 @@
 const calculateTransactionFee = require('../testFiles/calculateTransactionFee');
 const { determineInputType, determineOutputAddress } = require('./parseTransactionUtils');
 
-const prepareTransactionData = async (transaction, blockhash) => {
+const prepareTransactionData = async (transaction, blockhash, txTime) => {
     try {
         const transactionData = {
             transactionHash: transaction.txid,
@@ -11,7 +11,7 @@ const prepareTransactionData = async (transaction, blockhash) => {
             weight: transaction.weight,
             lockTime: transaction.locktime,
             version: transaction.version,
-            timestamp: transaction.blocktime,
+            time: txTime,
             fee: await calculateTransactionFee(transaction),
             inputs: [],
             outputs: [],
