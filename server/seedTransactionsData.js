@@ -1,72 +1,76 @@
 require('dotenv').config();
-const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
-const { playStartChime } = require('./utils/playStartChime');
-
-// Import bitcoinClient connection
+const { Worker } = require('worker_threads');
 const bitcoinClient = require('./bitcoinClient');
-
-// Import database operation functions
-const prepareTransactionData = require('./utils/prepareTransactionData');
-const batchInsertTransactions = require('./dbOperations/batchInsertTransactions');
 const logError = require('./dbOperations/logError');
+const batchInsertTransactions = require('./dbOperations/batchInsertTransactions');
 
 const MAX_WORKERS = 10;
+let activeWorkers = 0;
+let transactionQueue = []; // Queue to manage transactions for processing
+let preparedTransactions = []; // Accumulate prepared transactions for batch insertion
 
-if (isMainThread) {
-    const startBlockHeight = 401744;
-    const endBlockHeight = 401750;
+// Function to process a single block's transactions
+const processBlockTransactions = async (blockHeight) => {
+    try {
+        const blockHash = await bitcoinClient.getBlockHash(blockHeight);
+        const block = await bitcoinClient.getBlock(blockHash, 2); // Get transaction details
+        console.log(`Processing block ${blockHeight} with ${block.tx.length} transactions...`);
+        transactionQueue = block.tx.map(tx => ({ ...tx, block_hash: blockHash }));
+        assignTransactionsToWorkers();
+    } catch (error) {
+        console.error(`Error processing block ${blockHeight}:`, error);
+        await logError('Block Processing Error', error.message, blockHash);
+    }
+};
 
-    const processBlock = async (blockHeight) => {
-        try {
-            const blockHash = await bitcoinClient.getBlockHash(blockHeight);
-            const block = await bitcoinClient.getBlock(blockHash, 1); // 1 for verbose mode to get transaction details
-            
-            console.log(`Processing block ${blockHeight} with ${block.tx.length} transactions...`);
-            for (const txid of block.tx) {
-                // Create a worker for each transaction
-                const worker = new Worker(__filename, { workerData: { txid } });
-                worker.on('message', (message) => {
-                    console.log(message); // Handle success message
-                });
-                worker.on('error', (error) => {
-                    console.error(`Error processing transaction ${txid}:`, error);
-                    // Implement logic to handle the error, e.g., retrying, logging, or halting the process
-                });
-                worker.on('exit', (code) => {
-                    if (code !== 0) {
-                        console.error(`Worker stopped with exit code ${code}`);
-                    }
-                });
-                // Wait for the worker to finish before continuing
-                await new Promise((resolve, reject) => {
-                    worker.on('exit', resolve);
-                    worker.on('error', reject);
-                });
-            }
-        } catch (error) {
-            console.error(`Error processing block ${blockHeight}:`, error);
-            logError('Block Processing Error', error.message, blockHash);
-            // Decide how to handle block-level errors, e.g., retry or halt
+// Function to assign transactions to available workers
+const assignTransactionsToWorkers = () => {
+    while (activeWorkers < MAX_WORKERS && transactionQueue.length > 0) {
+        const transaction = transactionQueue.shift(); // Get next transaction
+        processTransaction(transaction);
+    }
+};
+
+// Function to process a transaction using a worker
+const processTransaction = (transaction) => {
+    activeWorkers++;
+    const worker = new Worker('./transactionWorker.js', { workerData: { transaction } });
+    worker.on('message', (preparedData) => {
+        preparedTransactions.push(preparedData);
+        activeWorkers--;
+        if (transactionQueue.length > 0) {
+            assignTransactionsToWorkers(); // Assign next transaction
+        } else if (activeWorkers === 0) {
+            batchInsertPreparedTransactions(); // All transactions processed, initiate batch insert
         }
-    };
+    });
+    worker.on('error', (error) => {
+        console.error(`Error processing transaction ${transaction.txid}:`, error);
+        activeWorkers--;
+        assignTransactionsToWorkers(); // Attempt to continue processing the next transaction
+    });
+};
 
-    const main = async () => {
-        for (let blockHeight = startBlockHeight; blockHeight <= endBlockHeight; blockHeight++) {
-            await processBlock(blockHeight);
+// Function to batch insert prepared transactions
+const batchInsertPreparedTransactions = async () => {
+    if (preparedTransactions.length > 0) {
+        await batchInsertTransactions(preparedTransactions);
+        console.log('Batch insert completed.');
+        preparedTransactions = []; // Reset for the next batch
+    }
+};
+
+// Main function to process blocks in a range
+const processBlocksInRange = async (startBlockHeight, endBlockHeight) => {
+    for (let blockHeight = startBlockHeight; blockHeight <= endBlockHeight; blockHeight++) {
+        await processBlockTransactions(blockHeight);
+        // Wait for all transactions of the current block to be processed before moving to the next
+        while (activeWorkers > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
-        console.log('All transactions processed.');
-    };
+    }
+    console.log('All blocks processed.');
+};
 
-    main().catch(console.error);
-} else {
-    // Worker thread: process a single transaction
-    const { txid } = workerData;
-    processTransaction(txid)
-        .then(() => {
-            parentPort.postMessage(`Transaction ${txid} processed successfully.`);
-        })
-        .catch((error) => {
-            parentPort.postMessage(`Error processing transaction ${txid}: ${error.message}`);
-            process.exit(1); // Exit with an error code to indicate failure
-        });
-}
+// Execute the main function with a specific range of blocks
+processBlocksInRange(0, 0).catch(console.error);

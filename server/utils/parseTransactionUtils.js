@@ -60,24 +60,52 @@ function determineInputType(input) {
 
 
 function determineOutputAddress(output) {
-    // If the output already contains an address, return it
-    if (output?.scriptPubKey && output?.scriptPubKey?.address && output?.scriptPubKey?.address.length > 0) {
+    // Directly extract the address if present
+    if (output?.scriptPubKey?.address && output.scriptPubKey.address.length > 0) {
         return output.scriptPubKey.address;
     }
 
-    // If the output type is pubkey, derive the address from the public key
-    if (output.scriptPubKey && output.scriptPubKey.type === 'pubkey') {
-        try {
-            const pubkeyBuffer = Buffer.from(output.scriptPubKey.asm.split(' ')[0], 'hex');
-            const { address } = bitcoin.payments.p2pkh({ pubkey: pubkeyBuffer });
-            return address;
-        } catch (error) {
-            console.error('Error deriving address from public key:', error);
+    try {
+        // Define a helper function to safely attempt address derivation and catch any errors
+        const safelyDeriveAddress = (deriveFn) => {
+            try {
+                const { address } = deriveFn();
+                if (address) {
+                    return address;
+                }
+            } catch (error) {
+                console.error('Error deriving address:', error);
+            }
             return 'unknown';
+        };
+
+        // Handle P2PKH (Pay to Public Key Hash) outputs
+        if (output.scriptPubKey.type === 'pubkey') {
+            return safelyDeriveAddress(() => {
+                const pubkeyBuffer = Buffer.from(output.scriptPubKey.asm.split(' ')[0], 'hex');
+                return bitcoin.payments.p2pkh({ pubkey: pubkeyBuffer });
+            });
         }
+        // Handle P2WPKH (Pay to Witness Public Key Hash) outputs
+        else if (output.scriptPubKey.type === 'witness_v0_keyhash') {
+            return safelyDeriveAddress(() => {
+                const hash = Buffer.from(output.scriptPubKey.hex.substring(4), 'hex'); // Skipping the leading "0014"
+                return bitcoin.payments.p2wpkh({ hash });
+            });
+        }
+        // Handle P2WSH (Pay to Witness Script Hash) outputs
+        else if (output.scriptPubKey.type === 'witness_v0_scripthash') {
+            return safelyDeriveAddress(() => {
+                const hash = Buffer.from(output.scriptPubKey.hex.substring(4), 'hex'); // Skipping the leading "0020"
+                return bitcoin.payments.p2wsh({ hash });
+            });
+        }
+        // Additional handling for other types could be implemented here
+    } catch (error) {
+        console.error('Error in address derivation process:', error);
     }
 
-    // If no address can be determined, return 'unknown'
+    // Return 'unknown' if no address can be determined or an error occurs
     return 'unknown';
 }
 

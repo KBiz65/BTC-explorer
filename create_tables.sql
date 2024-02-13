@@ -23,6 +23,7 @@ CREATE TABLE blocks (
 -- Create transactions table
 CREATE TABLE transactions (
     txid VARCHAR(64) PRIMARY KEY,
+    txhash VARCHAR(64),
     block_hash VARCHAR(64),
     size BIGINT,
     virtual_size BIGINT,
@@ -31,18 +32,6 @@ CREATE TABLE transactions (
     version BIGINT,
     fees NUMERIC,
     FOREIGN KEY (block_hash) REFERENCES blocks(block_hash)
-);
-
--- Create inputs table with unique constraint
-CREATE TABLE inputs (
-    input_id BIGSERIAL PRIMARY KEY,
-    txid VARCHAR(64),
-    referenced_txid VARCHAR(64),
-    referenced_output_index BIGINT,
-    input_sequence BIGINT,
-    FOREIGN KEY (txid) REFERENCES transactions(txid),
-    FOREIGN KEY (referenced_txid, referenced_output_index) REFERENCES outputs(txid, output_index),
-    UNIQUE (txid, referenced_txid, referenced_output_index)
 );
 
 -- Create outputs table with unique constraint
@@ -55,6 +44,18 @@ CREATE TABLE outputs (
     spent BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (txid) REFERENCES transactions(txid),
     UNIQUE (txid, output_index)
+);
+
+-- Create inputs table with unique constraint
+CREATE TABLE inputs (
+    input_id BIGSERIAL PRIMARY KEY,
+    txid VARCHAR(64),
+    referenced_txid VARCHAR(64),
+    referenced_output_index BIGINT,
+    input_sequence BIGINT,
+    FOREIGN KEY (txid) REFERENCES transactions(txid),
+    FOREIGN KEY (referenced_txid, referenced_output_index) REFERENCES outputs(txid, output_index),
+    UNIQUE (txid, referenced_txid, referenced_output_index)
 );
 
 -- Create witnesses table

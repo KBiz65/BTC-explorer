@@ -1,54 +1,49 @@
-const calculateTransactionFee = require('../testFiles/calculateTransactionFee');
-const { determineInputType, determineOutputAddress } = require('./parseTransactionUtils');
+const calculateTransactionFee = require('../utils/calculateTransactionFee');
+const { determineOutputAddress } = require('./parseTransactionUtils');
 
-const prepareTransactionData = async (transaction, blockhash, txTime) => {
+const prepareTransactionData = async (transaction) => {
+    console.log('transaction: ', transaction);
     try {
+        // Initialize the structure based on your schema
         const transactionData = {
-            transactionHash: transaction.txid,
-            blockHash: blockhash,
+            txid: transaction.txid,
+            txhash: transaction.hash ? transaction.hash : null, // Assuming the transaction object has a 'hash' property for SegWit transactions
+            block_hash: transaction.block_hash,
             size: transaction.size,
-            vsize: transaction.vsize,
+            virtual_size: transaction.vsize,
             weight: transaction.weight,
-            lockTime: transaction.locktime,
+            lock_time: transaction.locktime,
             version: transaction.version,
-            time: txTime,
-            fee: await calculateTransactionFee(transaction),
+            fees: transaction.fee !== undefined ? transaction.fee : await calculateTransactionFee(transaction),
             inputs: [],
-            outputs: [],
-            isMultisig: false,
+            outputs: []
         };
 
-        // Process inputs (vin)
-        transactionData.inputs = transaction.vin.map(input => {
-            // You can add more input properties here if needed
+        // Process inputs
+        transactionData.inputs = transaction.vin.map((input, index) => {
+            // Input processing adjusted for the schema
             return {
                 txid: transaction.txid,
-                previousTxHash: input.txid,
-                outputIndex: input.vout,
-                inputType: determineInputType(input),
-                sequence: input.sequence,
-                witnesses: input.txinwitness ? input.txinwitness : null 
+                referenced_txid: input.txid,
+                referenced_output_index: input.vout,
+                input_sequence: input.sequence,
+                witnesses: input.txinwitness ? input.txinwitness : []
+                // Note: Determine if additional properties are needed for your inputs processing
             };
         });
 
-        // Process outputs (vout) and check for multisig
-        transactionData.outputs = transaction.vout.map(output => {
-            const isPotentialMultisigType = output?.scriptPubKey?.type === 'scripthash' || output?.scriptPubKey?.type === 'witness_v0_scripthash';
-            const asmParts = output?.scriptPubKey?.asm.split(' ');
-            const hasMultisigOp = asmParts.includes('OP_CHECKMULTISIG') || asmParts.includes('OP_CHECKMULTISIGVERIFY');
-            if (isPotentialMultisigType && hasMultisigOp) {
-                transactionData.isMultisig = true; // Flag as potential multisig
-            }
-
+        // Process outputs
+        transactionData.outputs = transaction.vout.map((output, index) => {
+            // Output processing adjusted for the schema
             return {
                 txid: transaction.txid,
-                value: output.value,
-                outputIndex: output.n,
-                outputType: output.scriptPubKey.type,
+                amount: output.value,
+                output_index: output.n,
                 address: determineOutputAddress(output)
+                // Note: 'spent' is not determined here and defaults to FALSE in the database
             };
         });
-        // console.log('transactionData: ', transactionData);
+
         return transactionData;
     } catch (error) {
         console.error('Error in prepareTransactionData:', error);
