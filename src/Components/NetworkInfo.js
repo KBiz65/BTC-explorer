@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 const {
     calculateHashRate,
-    calculateDifficulty,
+    calculateLargeNum,
     formatLargeNumber,
 } = require('../utils/calculateNetworkInfo');
 
@@ -31,7 +31,7 @@ function NetworkInfo({ data }) {
                             <Divider orientation="vertical" flexItem />
                             <Grid item sx={{ flexGrow: 1 }} textAlign="center">
                                 <Typography variant="caption">Difficulty</Typography>
-                                <Typography variant="body1">{data.difficulty ? `${data.difficulty} / ${calculateDifficulty(data.difficulty)}` : 'Loading...'}</Typography>
+                                <Typography variant="body1">{data.difficulty ? `${data.difficulty} / ${calculateLargeNum(data.difficulty)}` : 'Loading...'}</Typography>
                             </Grid>
                             <Divider orientation="vertical" flexItem />
                             <Grid item sx={{ flexGrow: 1 }} textAlign="center">

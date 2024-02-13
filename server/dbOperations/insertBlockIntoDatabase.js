@@ -4,29 +4,29 @@ const insertBlockIntoDatabase = async (blockInfo) => {
     const client = await pool.connect();
     try {
         const blockQuery = `
-            INSERT INTO blocks (block_hash, version, previous_block_hash, merkle_root, block_time, bits, nonce, height, size, weight, num_transactions, confirmations, timestamp)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            INSERT INTO blocks (block_hash, version, versionhex, previous_block_hash, merkle_root, block_timestamp, mediantime, nonce, bits, difficulty, chainwork, ntx, height, strippedsize, size, weight, block_reward)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             ON CONFLICT (block_hash) DO NOTHING;
         `;
 
-        // Adjust data to match db field types
-        const bits = parseInt(blockInfo.bits, 16);
-
-        // Assuming 'total_fees' is calculated elsewhere and added to blockInfo
         const values = [
-            blockInfo.hash,
+            blockInfo.block_hash,
             blockInfo.version,
-            blockInfo.previousblockhash,
-            blockInfo.merkleroot,
-            blockInfo.time,
-            bits,
+            blockInfo.versionHex,
+            blockInfo.previous_block_hash ?? null,
+            blockInfo.merkle_root,
+            blockInfo.block_timestamp,
+            blockInfo.mediantime,
             blockInfo.nonce,
+            blockInfo.bits,
+            blockInfo.difficulty,
+            blockInfo.chainwork,
+            blockInfo.nTx,
             blockInfo.height,
+            blockInfo.strippedsize,
             blockInfo.size,
             blockInfo.weight,
-            blockInfo.nTx,
-            blockInfo.confirmations,
-            new Date(blockInfo.time * 1000),
+            blockInfo.block_reward ?? null,
         ];
 
         await client.query(blockQuery, values);

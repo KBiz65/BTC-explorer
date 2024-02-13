@@ -12,18 +12,18 @@ const calculateHashRate = (hashRate) => {
     return hashRate.toFixed(2) + " " + units[index];
 }
 
-const calculateDifficulty = (difficulty) => {
-    if (!difficulty) return;
-    difficulty = Number(difficulty);
+const calculateLargeNum = (largeNum) => {
+    if (!largeNum) return;
+    largeNum = Number(largeNum);
     const units = ["", "K", "M", "B", "T", "P", "E", "Z", "Y"];
     let index = 0;
 
-    while (difficulty >= 1000 && index < units.length - 1) {
-        difficulty /= 1000;
+    while (largeNum >= 1000 && index < units.length - 1) {
+        largeNum /= 1000;
         index++;
     }
 
-    return difficulty.toFixed(2) + " " + units[index];
+    return largeNum.toFixed(2) + " " + units[index];
 }
 
 const formatLargeNumber = (numToConvert) => {
@@ -32,6 +32,6 @@ const formatLargeNumber = (numToConvert) => {
 
 module.exports = {
     calculateHashRate,
-    calculateDifficulty,
+    calculateLargeNum,
     formatLargeNumber,
 };

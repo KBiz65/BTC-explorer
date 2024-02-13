@@ -4,13 +4,13 @@ const truncateData = (stringToTruncate, type) => {
     }
 }
 
-const formatPrice = (price) => {
-    if (!price) return;
-    price = Number(price).toFixed(2);
-    return parseFloat(price).toLocaleString();
+const formatAmount = (amount) => {
+    if (!amount) return;
+    amount = Number(amount).toFixed(2);
+    return parseFloat(amount).toLocaleString();
 };
 
 module.exports = {
     truncateData,
-    formatPrice,
+    formatAmount,
 };

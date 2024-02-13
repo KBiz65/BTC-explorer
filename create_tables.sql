@@ -2,17 +2,22 @@
 CREATE TABLE blocks (
     block_hash VARCHAR(64) PRIMARY KEY,
     version BIGINT,
+    versionHex VARCHAR(8),
     previous_block_hash VARCHAR(64),
     merkle_root VARCHAR(64),
-    block_time BIGINT,
-    bits BIGINT,
+    block_timestamp BIGINT, -- Storing as Unix timestamp (seconds since Unix epoch)
+    mediantime BIGINT, -- Also considering mediantime as Unix timestamp for consistency
     nonce BIGINT,
+    bits CHAR(8),
+    difficulty NUMERIC,
+    chainwork VARCHAR(64),
+    nTx BIGINT,
     height BIGINT,
+    strippedsize BIGINT,
     size BIGINT,
     weight BIGINT,
-    num_transactions BIGINT,
-    confirmations BIGINT,
-    timestamp TIMESTAMP
+    block_reward NUMERIC,
+    DB_Timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create transactions table
@@ -32,12 +37,12 @@ CREATE TABLE transactions (
 CREATE TABLE inputs (
     input_id BIGSERIAL PRIMARY KEY,
     txid VARCHAR(64),
-    prev_txid VARCHAR(64),
-    prev_vout BIGINT,
+    referenced_txid VARCHAR(64),
+    referenced_output_index BIGINT,
     input_sequence BIGINT,
-    scripttype VARCHAR(50),
     FOREIGN KEY (txid) REFERENCES transactions(txid),
-    UNIQUE (txid, prev_txid, prev_vout)
+    FOREIGN KEY (referenced_txid, referenced_output_index) REFERENCES outputs(txid, output_index),
+    UNIQUE (txid, referenced_txid, referenced_output_index)
 );
 
 -- Create outputs table with unique constraint
@@ -45,9 +50,8 @@ CREATE TABLE outputs (
     output_id BIGSERIAL PRIMARY KEY,
     txid VARCHAR(64),
     amount NUMERIC,
-    address VARCHAR(100),
     output_index BIGINT,
-    scripttype VARCHAR(50),
+    address VARCHAR(100),
     spent BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (txid) REFERENCES transactions(txid),
     UNIQUE (txid, output_index)
@@ -79,24 +83,10 @@ CREATE TABLE bitcoin_prices (
 );
 
 -- Indexes
--- blocks
 CREATE INDEX idx_blocks_height ON blocks(height);
-CREATE INDEX idx_blocks_time_range ON blocks(block_time);
-
--- transactions
-CREATE INDEX idx_transactions_block_hash ON transactions(block_hash);
-
--- inputs
-CREATE INDEX idx_inputs_txid ON inputs(txid);
-CREATE INDEX idx_inputs_input_id ON inputs(input_id);
-CREATE INDEX idx_inputs_prev_txid_prev_vout ON inputs(prev_txid, prev_vout);
-CREATE INDEX idx_inputs_scripttype ON inputs(scripttype);
-
--- outputs
+CREATE INDEX idx_outputs_txid_output_index ON outputs(txid, output_index);
 CREATE INDEX idx_outputs_address ON outputs(address);
-CREATE INDEX idx_outputs_spent ON outputs(spent);
-CREATE INDEX idx_outputs_address_spent ON outputs(address, spent);
-CREATE INDEX idx_outputs_txid_vout ON outputs(txid, output_index);
-
--- witnesses
+CREATE INDEX idx_transactions_block_hash ON transactions(block_hash);
+CREATE INDEX idx_inputs_txid ON inputs(txid);
+CREATE INDEX idx_inputs_referenced ON inputs(referenced_txid, referenced_output_index);
 CREATE INDEX idx_witnesses_input_id ON witnesses(input_id);

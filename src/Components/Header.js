@@ -12,7 +12,8 @@ import axios from 'axios';
 import EndeavourLogo from '../assets/BTCEndeavorLogoPNG.png';
 import BitcoinLogo from '../assets/bitcoin-btc-logo.png';
 import BitcoinGraph from '../assets/BTC-Graph.png';
-const { formatPrice } = require('../utils/formatData');
+const { formatAmount } = require('../utils/formatData');
+const { calculateLargeNum } = require('../utils/calculateNetworkInfo');
 
 function Header({ searchTerm, setSearchTerm, handleSearch }) {
     const [historicalPrices, setHistoricalPrices] = useState([]);
@@ -20,6 +21,7 @@ function Header({ searchTerm, setSearchTerm, handleSearch }) {
         priceDifference: '',
         upOrDown: '',
     });
+    const [currentSupply, setCurrentSupply] = useState(0);
 
     useEffect(() => {
         const source = axios.CancelToken.source();
@@ -29,8 +31,13 @@ function Header({ searchTerm, setSearchTerm, handleSearch }) {
                 const pricingResponse = await axios.get('http://localhost:3001/network/prices', {
                     cancelToken: source.token,
                 });
+
+                const circulatingSupplyResponse = await axios.get('http://localhost:3001/network/circulating', {
+                    cancelToken: source.token,
+                });
         
                 setHistoricalPrices(pricingResponse.data.bitcoinPrices);
+                setCurrentSupply(circulatingSupplyResponse.data.circulatingSupply);
             } catch (error) {
                 if (!axios.isCancel(error)) {
                     console.error('Search error:', error);
@@ -122,7 +129,7 @@ function Header({ searchTerm, setSearchTerm, handleSearch }) {
                                             />
                                         </Grid>
                                         <Grid container alignItems="center">
-                                            <Typography variant="body2">{ historicalPrices ? `$${formatPrice(historicalPrices[0]?.price)}` : 'Loading...' }</Typography>
+                                            <Typography variant="body2">{ historicalPrices ? `$${formatAmount(historicalPrices[0]?.price)}` : 'Loading...' }</Typography>
                                             <Typography variant="body2" sx={{ color: priceChange.upOrDown === 'up' ? 'green' : 'red', pl: 1 }}>
                                                 {priceChange.priceDifference ? priceChange.priceDifference : 'Loading...'}
                                             </Typography>
@@ -142,17 +149,17 @@ function Header({ searchTerm, setSearchTerm, handleSearch }) {
                                             {/* Avatar column */}
                                             <Grid item xs={4} textAlign="left">
                                                 <Typography variant="caption">Circulation</Typography>
-                                                <Typography variant="body1">19,560,237.5 BTC</Typography>
+                                                <Typography variant="body1">{`${formatAmount(currentSupply)} BTC`}</Typography>
                                             </Grid>
                                             {/* Avatar column */}
                                             <Grid item xs={4} textAlign="left">
                                                 <Typography variant="caption">Not Mined</Typography>
-                                                <Typography variant="body1">1,439,762.5 BTC</Typography>
+                                                <Typography variant="body1">{`${formatAmount(21000000 - currentSupply)} BTC`}</Typography>
                                             </Grid>
                                             {/* Avatar column */}
                                             <Grid item xs={3} textAlign="left">
                                                 <Typography variant="caption">Market Cap</Typography>
-                                                <Typography variant="body1">$778.36 B</Typography>
+                                                <Typography variant="body1">{`$${calculateLargeNum(currentSupply * historicalPrices[0]?.price)}`}</Typography>
                                             </Grid>
                                         </Grid>
                                     </Box>
