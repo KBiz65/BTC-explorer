@@ -2,7 +2,6 @@ const calculateTransactionFee = require('../utils/calculateTransactionFee');
 const { determineOutputAddress } = require('./parseTransactionUtils');
 
 const prepareTransactionData = async (transaction) => {
-    console.log('transaction: ', transaction);
     try {
         // Initialize the structure based on your schema
         const transactionData = {
@@ -22,10 +21,12 @@ const prepareTransactionData = async (transaction) => {
         // Process inputs
         transactionData.inputs = transaction.vin.map((input, index) => {
             // Input processing adjusted for the schema
+            const prev_txid = input.txid ? input.txid : input.coinbase ? 'coinbase' : null;
+            const prev_vout_idx = input.vout ?? null;
             return {
                 txid: transaction.txid,
-                referenced_txid: input.txid,
-                referenced_output_index: input.vout,
+                referenced_txid: prev_txid,
+                referenced_output_index: prev_vout_idx,
                 input_sequence: input.sequence,
                 witnesses: input.txinwitness ? input.txinwitness : []
                 // Note: Determine if additional properties are needed for your inputs processing

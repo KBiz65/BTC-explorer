@@ -73,4 +73,4 @@ const processBlocksInRange = async (startBlockHeight, endBlockHeight) => {
 };
 
 // Execute the main function with a specific range of blocks
-processBlocksInRange(0, 0).catch(console.error);
+processBlocksInRange(1001, 50000).catch(console.error);
