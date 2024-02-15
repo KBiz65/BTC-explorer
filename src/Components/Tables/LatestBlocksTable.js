@@ -12,14 +12,15 @@ import { Link as RouterLink } from 'react-router-dom';
 const calculateTimePassed = require('../../utils/calculateTimePassed');
 
 const LatestBlocksTable = ({ data }) => {
+    console.log('data: ', data);
     const tableRows = (
         <>
             {data.length > 0 ? (
                 data.map((block) => (
                     <TableRow key={block.height}>
                         <TableCell>{block.height}</TableCell>
-                        <TableCell>{calculateTimePassed(block.block_time)} ago</TableCell>
-                        <TableCell>{block.coinbase_value}</TableCell>
+                        <TableCell>{calculateTimePassed(block.block_timestamp)} ago</TableCell>
+                        <TableCell>{block.block_reward}</TableCell>
                     </TableRow>
                 ))
             ) : (

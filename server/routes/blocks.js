@@ -9,8 +9,8 @@ router.get('/latest', async (req, res) => {
     // Query the database for block information
     const blocksQuery = `
       SELECT * FROM blocks
-      ORDER BY height DESC
-      OFFSET 200
+      ORDER BY height ASC
+      OFFSET 100000
       LIMIT 10;
     `;
     const { rows: blocks } = await pool.query(blocksQuery);
@@ -20,32 +20,7 @@ router.get('/latest', async (req, res) => {
       return;
     }
 
-    const coinbaseQuery = `
-      SELECT
-        txid AS coinbase_txid,
-        (SELECT SUM(amount) FROM outputs o WHERE o.txid = t.txid) AS coinbase_value
-      FROM transactions t
-      WHERE block_hash = $1
-        AND EXISTS (
-          SELECT 1
-          FROM inputs i
-          WHERE i.txid = t.txid
-            AND i.scripttype = 'Coinbase'
-        );
-    `;
-
-    const results = await Promise.all(blocks.map(async block => {
-      const { rows: coinbaseData } = await pool.query(coinbaseQuery, [block.block_hash]);
-      const { coinbase_txid, coinbase_value } = coinbaseData[0];
-  
-      return {
-        ...block,
-        coinbase_txid,
-        coinbase_value
-      }
-    }));
-
-    res.json({ latestBlocks : results });
+    res.json({ latestBlocks : blocks });
   } catch (error) {
     console.error('Error retrieving latest blocks:', error);
     res.status(500).json({ error: 'Internal server error' });

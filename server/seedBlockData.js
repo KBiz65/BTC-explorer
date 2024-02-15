@@ -5,14 +5,20 @@ const logError = require('./dbOperations/logError');
 
 const main = async () => {
     try {
-		const currentBlockchainHeight = await bitcoinClient.getBlockCount();
-		const startBlock = 515796;
+        const currentBlockchainHeight = await bitcoinClient.getBlockCount();
+        const startBlock = 515796;
 
         for (let blockHeight = startBlock; blockHeight <= currentBlockchainHeight; blockHeight++) {
             try {
                 const blockHash = await bitcoinClient.getBlockHash(blockHeight);
-				const block = await bitcoinClient.getBlock(blockHash);
-				
+                const block = await bitcoinClient.getBlock(blockHash);
+                const coinbaseTxId = block.tx[0];
+                // Fetch the detailed coinbase transaction
+                const coinbaseTx = await bitcoinClient.getRawTransaction(coinbaseTxId, true);
+
+                // The block reward is in the first vout of the coinbase transaction
+                const blockReward = coinbaseTx.vout.reduce((acc, currVout) => acc + currVout.value, 0);
+
                 const blockData = {
                     block_hash: block.hash,
                     version: block.version,
@@ -30,7 +36,7 @@ const main = async () => {
                     strippedsize: block.strippedsize,
                     size: block.size,
                     weight: block.weight,
-                    block_reward: null, // Placeholder, to be calculated later
+                    block_reward: blockReward
                 };
 
                 await insertBlockIntoDatabase(blockData);

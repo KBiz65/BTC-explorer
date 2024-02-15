@@ -87,7 +87,13 @@ async function processBlocksInRange(startBlockHeight, endBlockHeight) {
     for (let blockHeight = startBlockHeight; blockHeight <= endBlockHeight; blockHeight++) {
         await processBlockTransactions(blockHeight);
     }
-    console.log('All blocks processed.');
+    if (startBlockHeight === endBlockHeight) {
+        console.log(`Block ${startBlockHeight} processed.`);
+    } else {
+        console.log(`Blocks ${startBlockHeight} to ${endBlockHeight} processed.`);
+    }
 }
 
-processBlocksInRange(38553, 100000).catch(console.error);
+processBlocksInRange(100001, 200000).catch(console.error);
+
+module.exports = { processBlocksInRange };

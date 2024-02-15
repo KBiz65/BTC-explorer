@@ -26,7 +26,7 @@ const insertBlockIntoDatabase = async (blockInfo) => {
             blockInfo.strippedsize,
             blockInfo.size,
             blockInfo.weight,
-            blockInfo.block_reward ?? null,
+            blockInfo.block_reward,
         ];
 
         await client.query(blockQuery, values);

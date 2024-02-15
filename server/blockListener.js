@@ -1,5 +1,6 @@
 const zmq = require('zeromq');
 const insertBlockIntoDatabase = require('./dbOperations/insertBlockIntoDatabase');
+const { processBlocksInRange } = require('./seedTransactionsData'); // Import the function
 const bitcoinClient = require('./bitcoinClient');
 const logError = require('./dbOperations/logError');
 
@@ -18,6 +19,13 @@ sock.on('message', async (topic, message) => {
 
         try {
             const block = await bitcoinClient.getBlock(blockHash, 2); // The second parameter ensures verbose data is returned
+            // Coinbase txid is the first one in the list
+            const coinbaseTxId = block.tx[0];
+            // Fetch the detailed coinbase transaction
+            const coinbaseTx = await bitcoinClient.getRawTransaction(coinbaseTxId, true);
+
+            // The block reward is in the first vout of the coinbase transaction
+            const blockReward = coinbaseTx.vout.reduce((acc, currVout) => acc + currVout.value, 0);
             const blockData = {
                 block_hash: block.hash,
                 version: block.version,
@@ -35,11 +43,12 @@ sock.on('message', async (topic, message) => {
                 strippedsize: block.strippedsize,
                 size: block.size,
                 weight: block.weight,
-                block_reward: null, // Placeholder, to be calculated later
+                block_reward: blockReward,
             };
 
             await insertBlockIntoDatabase(blockData);
             console.log(`Block ${block.hash} inserted into database.`);
+            await processBlocksInRange(block.height, block.height);
         } catch (error) {
             console.error(`Error inserting block ${blockHash}:`, error);
             await logError('Block Processing Error', error.message, blockHash);
