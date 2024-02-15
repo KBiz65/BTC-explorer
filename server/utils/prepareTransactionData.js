@@ -21,8 +21,8 @@ const prepareTransactionData = async (transaction) => {
         // Process inputs
         transactionData.inputs = transaction.vin.map((input, index) => {
             // Input processing adjusted for the schema
-            const prev_txid = input.txid ? input.txid : input.coinbase ? 'coinbase' : null;
-            const prev_vout_idx = input.vout ?? null;
+            const prev_txid = input.txid ? input.txid : input.coinbase ? 'coinbase' : 'unknown';
+            const prev_vout_idx = input.vout ?? -1;
             return {
                 txid: transaction.txid,
                 referenced_txid: prev_txid,

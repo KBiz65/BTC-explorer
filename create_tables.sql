@@ -54,7 +54,6 @@ CREATE TABLE inputs (
     referenced_output_index BIGINT,
     input_sequence BIGINT,
     FOREIGN KEY (txid) REFERENCES transactions(txid),
-    FOREIGN KEY (referenced_txid, referenced_output_index) REFERENCES outputs(txid, output_index),
     UNIQUE (txid, referenced_txid, referenced_output_index)
 );
 

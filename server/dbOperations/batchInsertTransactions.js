@@ -26,15 +26,15 @@ const insertTransactions = async (client, transactions) => {
     `;
   
     const transactionValues = [
-      transaction.data.txid,
-      transaction.data.txhash,
-      transaction.data.block_hash,
-      transaction.data.size,
-      transaction.data.virtual_size,
-      transaction.data.weight,
-      transaction.data.lock_time,
-      transaction.data.version,
-      transaction.data.fees,
+      transaction.txid,
+      transaction.txhash,
+      transaction.block_hash,
+      transaction.size,
+      transaction.virtual_size,
+      transaction.weight,
+      transaction.lock_time,
+      transaction.version,
+      transaction.fees,
     ];
   
     await client.query(transactionQuery, transactionValues);
@@ -43,7 +43,7 @@ const insertTransactions = async (client, transactions) => {
 
 const insertOutputs = async (client, transactions) => {
   for (const transaction of transactions) {
-    for (const output of transaction.data.outputs) {
+    for (const output of transaction.outputs) {
       const outputQuery = `
           INSERT INTO outputs (txid, amount, address, output_index, spent)
           VALUES ($1, $2, $3, $4, $5)
@@ -63,7 +63,7 @@ const insertOutputs = async (client, transactions) => {
 
 const insertInputs = async (client, transactions) => {
   for (const transaction of transactions) {
-    for (const input of transaction.data.inputs) {
+    for (const input of transaction.inputs) {
       try {
         // Insert input and get the generated input_id
         const inputQuery = `
@@ -105,10 +105,12 @@ const insertInputs = async (client, transactions) => {
           await client.query(witnessQuery, witnessValues);
         }
       } catch (error) {
+        console.log('blockHash with error: ', transaction.block_hash);
+        console.log('txid with error: ', transaction.txid);
         console.log('error: ', error);
       }
     }
-    const referencedOutputs = transaction.data.inputs.map((input) => ({
+    const referencedOutputs = transaction.inputs.map((input) => ({
       txid: input.referenced_txid,
       outputIndex: input.referenced_output_index,
     }));
@@ -117,7 +119,7 @@ const insertInputs = async (client, transactions) => {
 };
 
 const markOutputsAsSpent = async (client, outputs) => {
-  const validOutputs = outputs.filter((output) => output.txid !== 'coinbase' && output.outputIndex !== null);
+  const validOutputs = outputs.filter((output) => !(output.txid === 'coinbase' || output.txid === 'unknown') && output.outputIndex !== -1);
 
   const valuesList = validOutputs
     .map((output, index) => `($${index * 2 + 1}::text, $${index * 2 + 2}::integer)`)
