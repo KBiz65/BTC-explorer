@@ -38,6 +38,14 @@ const insertTransactions = async (client, transactions) => {
     ];
   
     await client.query(transactionQuery, transactionValues);
+    // use this to debug when transactions not getting entered correctly
+    // const result = await client.query(transactionQuery, transactionValues);
+
+    // if (result.rowCount > 0) {
+    //   console.log(`Transaction ${transaction.txid} inserted successfully.`);
+    // } else {
+    //   console.log(`Transaction ${transaction.txid} already exists or conflict occurred.`);
+    // }
   }
 };
 
@@ -57,6 +65,14 @@ const insertOutputs = async (client, transactions) => {
         false, // Initially set spent to false for new outputs
       ];
       await client.query(outputQuery, outputValues);
+      // use this to debug when outputs aren't getting entered correctly
+      // const result = await client.query(outputQuery, outputValues);
+
+      // if (result.rowCount > 0) {
+      //   console.log(`Output for transaction ${output.txid} inserted successfully.`);
+      // } else {
+      //   console.log(`Output for transaction ${output.txid} already exists or conflict occurred.`);
+      // }
     }
   }
 };
@@ -83,6 +99,8 @@ const insertInputs = async (client, transactions) => {
   
         let inputId;
         if (res.rows.length > 0) {
+          // have console.log here when debugging inputs when not entered correctly into the db
+          // console.log(`Input for transaction ${input.txid} processed successfully.`);
           inputId = res.rows[0].input_id;
         } else {
           // Fetch the existing input_id for the input if not inserted due to conflict
@@ -103,6 +121,12 @@ const insertInputs = async (client, transactions) => {
             `;
           const witnessValues = [inputId, input.witnesses];
           await client.query(witnessQuery, witnessValues);
+          // use this to debug when witnesses aren't being entered into db correctly
+          // const result = await client.query(witnessQuery, witnessValues);
+
+          // if (result.rowCount > 0) {
+          //   console.log(`Witness for input ${inputId} inserted successfully.`);
+          // }
         }
       } catch (error) {
         console.log('blockHash with error: ', transaction.block_hash);
