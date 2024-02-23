@@ -35,7 +35,6 @@ router.get('/:searchTerm', async (req, res) => {
         for (const response of responses) {
           if (response.status === 'fulfilled') {
               if (response.value.data) {
-                  console.log('response.value: ', response.value);
               results.push(response.value.data);
             }
           }

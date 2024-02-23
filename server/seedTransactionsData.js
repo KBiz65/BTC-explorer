@@ -4,7 +4,7 @@ const bitcoinClient = require('./bitcoinClient');
 const logError = require('./dbOperations/logError');
 const batchInsertTransactions = require('./dbOperations/batchInsertTransactions');
 
-const MAX_WORKERS = 10;
+const MAX_WORKERS = 15;
 let activeWorkers = 0;
 let transactionQueue = [];
 let preparedTransactions = [];
@@ -12,6 +12,7 @@ let preparedTransactions = [];
 async function processTransaction(transaction) {
     return new Promise((resolve, reject) => {
         const worker = new Worker('./transactionWorker.js', { workerData: { transaction } });
+        if (activeWorkers === 20) console.log('Max workers working');
 
         worker.on('message', async (message) => {
             if (message.type === 'transactionProcessed') {
@@ -84,7 +85,7 @@ async function processBlockTransactions(blockHeight) {
 }
 
 async function processBlocksInRange(startBlockHeight, endBlockHeight) {
-    for (let blockHeight = startBlockHeight; blockHeight <= endBlockHeight; blockHeight++) {
+        for (let blockHeight = startBlockHeight; blockHeight <= endBlockHeight; blockHeight++) {
         await processBlockTransactions(blockHeight);
     }
     if (startBlockHeight === endBlockHeight) {
@@ -94,6 +95,7 @@ async function processBlocksInRange(startBlockHeight, endBlockHeight) {
     }
 }
 
-processBlocksInRange(100001, 200000).catch(console.error);
+processBlocksInRange(351200, 375000).catch(console.error);
+// processBlocksInRange(216285, 216285).catch(console.error);
 
 module.exports = { processBlocksInRange };

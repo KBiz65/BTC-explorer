@@ -21,7 +21,7 @@ async function updateHistoricalPrices() {
 			rows: [latestEntry],
 		} = await pool.query('SELECT date FROM bitcoin_prices ORDER BY date DESC LIMIT 1');
 		let startDate = latestEntry ? new Date(latestEntry.date) : new Date('2013-08-01');
-		const endDate = new Date();
+		const endDate = new Date() - 1;
 		startDate.setDate(startDate.getDate() + 1);
 
 		while (startDate <= endDate) {
@@ -80,7 +80,9 @@ router.get('/prices', async (req, res) => {
 			[sixMonthsAgoString]
 		);
 
-		res.status(200).json({ bitcoinPrices: prices });
+		const todayBTCPriceResponse = await axios.get('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+
+		res.status(200).json({ historicalBTCPrices: prices, currentBTCPrice: todayBTCPriceResponse?.data?.data?.amount || null });
 	} catch (error) {
 		console.error('Error retrieving historical pricing info:', error);
 		res.status(500).json({ error: 'Internal server error' });

@@ -12,7 +12,6 @@ import { Link as RouterLink } from 'react-router-dom';
 const calculateTimePassed = require('../../utils/calculateTimePassed');
 
 const LatestBlocksTable = ({ data }) => {
-    console.log('data: ', data);
     const tableRows = (
         <>
             {data.length > 0 ? (
