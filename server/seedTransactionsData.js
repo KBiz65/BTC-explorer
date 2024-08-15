@@ -12,7 +12,7 @@ let preparedTransactions = [];
 async function processTransaction(transaction) {
     return new Promise((resolve, reject) => {
         const worker = new Worker('./transactionWorker.js', { workerData: { transaction } });
-        if (activeWorkers === 20) console.log('Max workers working');
+        // if (activeWorkers === MAX_WORKERS) console.log('Max workers working');
 
         worker.on('message', async (message) => {
             if (message.type === 'transactionProcessed') {
@@ -95,7 +95,7 @@ async function processBlocksInRange(startBlockHeight, endBlockHeight) {
     }
 }
 
-processBlocksInRange(351627, 375000).catch(console.error);
-// processBlocksInRange(375001, 400000).catch(console.error);
+processBlocksInRange(836974, 850000).catch(console.error);
+// processBlocksInRange(850001, current number).catch(console.error);
 
 module.exports = { processBlocksInRange };

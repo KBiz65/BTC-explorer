@@ -6,7 +6,7 @@ const logError = require('./dbOperations/logError');
 const main = async () => {
     try {
         const currentBlockchainHeight = await bitcoinClient.getBlockCount();
-        const startBlock = 830213;
+        const startBlock = currentBlockchainHeight;
 
         for (let blockHeight = startBlock; blockHeight <= currentBlockchainHeight; blockHeight++) {
             try {

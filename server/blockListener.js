@@ -1,7 +1,7 @@
 const zmq = require('zeromq');
-const insertBlockIntoDatabase = require('./dbOperations/insertBlockIntoDatabase');
-const { processBlocksInRange } = require('./seedTransactionsData'); // Import the function
 const bitcoinClient = require('./bitcoinClient');
+// const { processBlocksInRange } = require('./seedTransactionsData'); // Import the function
+const insertBlockIntoDatabase = require('./dbOperations/insertBlockIntoDatabase');
 const logError = require('./dbOperations/logError');
 
 let sock = zmq.socket('sub');
@@ -18,14 +18,14 @@ sock.on('message', async (topic, message) => {
         console.log('New block detected:', blockHash);
 
         try {
-            const block = await bitcoinClient.getBlock(blockHash, 2); // The second parameter ensures verbose data is returned
-            // Coinbase txid is the first one in the list
+            const block = await bitcoinClient.getBlock(blockHash);
             const coinbaseTxId = block.tx[0];
             // Fetch the detailed coinbase transaction
             const coinbaseTx = await bitcoinClient.getRawTransaction(coinbaseTxId, true);
 
             // The block reward is in the first vout of the coinbase transaction
             const blockReward = coinbaseTx.vout.reduce((acc, currVout) => acc + currVout.value, 0);
+
             const blockData = {
                 block_hash: block.hash,
                 version: block.version,
@@ -43,14 +43,14 @@ sock.on('message', async (topic, message) => {
                 strippedsize: block.strippedsize,
                 size: block.size,
                 weight: block.weight,
-                block_reward: blockReward,
+                block_reward: blockReward
             };
 
             await insertBlockIntoDatabase(blockData);
-            console.log(`Block ${block.hash} inserted into database.`);
-            await processBlocksInRange(block.height, block.height);
+            console.log(`Block ${block.height} inserted into database.`);
+            // await processBlocksInRange(block.height, block.height); 
         } catch (error) {
-            console.error(`Error inserting block ${blockHash}:`, error);
+            console.error(`Error processing block ${blockHash}:`, error);
             await logError('Block Processing Error', error.message, blockHash);
         }
     }

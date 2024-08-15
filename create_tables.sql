@@ -63,7 +63,6 @@ CREATE TABLE witnesses (
     input_id BIGINT,
     witness_data TEXT[],
     FOREIGN KEY (input_id) REFERENCES inputs(input_id),
-    UNIQUE (input_id, witness_data)
 );
 
 -- Create error_logs table
