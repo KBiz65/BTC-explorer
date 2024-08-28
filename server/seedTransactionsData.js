@@ -95,7 +95,6 @@ async function processBlocksInRange(startBlockHeight, endBlockHeight) {
     }
 }
 
-processBlocksInRange(836974, 850000).catch(console.error);
-// processBlocksInRange(850001, current number).catch(console.error);
+// processBlocksInRange(857866, 857867).catch(console.error);
 
 module.exports = { processBlocksInRange };

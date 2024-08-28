@@ -1,12 +1,14 @@
 require('dotenv').config();
 const bitcoinClient = require('./bitcoinClient');
 const insertBlockIntoDatabase = require('./dbOperations/insertBlockIntoDatabase');
+const { processBlocksInRange } = require('./seedTransactionsData');
 const logError = require('./dbOperations/logError');
 
 const main = async () => {
     try {
         const currentBlockchainHeight = await bitcoinClient.getBlockCount();
-        const startBlock = currentBlockchainHeight;
+        // const startBlock = currentBlockchainHeight;
+        const startBlock = 858376;
 
         for (let blockHeight = startBlock; blockHeight <= currentBlockchainHeight; blockHeight++) {
             try {
@@ -41,6 +43,7 @@ const main = async () => {
 
                 await insertBlockIntoDatabase(blockData);
                 console.log(`Block ${blockHeight} inserted.`);
+                await processBlocksInRange(block.height, block.height);
             } catch (error) {
                 console.error(`Error processing block ${blockHeight}:`, error);
                 await logError('Block Processing Error', error.message, blockHash);
